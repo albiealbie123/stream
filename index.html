@@ -16,7 +16,7 @@
 :root{
   --bg:#0b0c10; --panel:#14161c; --panel2:#1c1f27; --line:#2a2e38;
   --text:#f1f2f4; --muted:#9aa1ad; --faint:#6b7280;
-  --imdb:#f5c518; --accent:#eceef1; --danger:#ff5a4f;
+  --imdb:#f5c518; --accent:#eceef1; --danger:#ff5a4f; --ok:#34c759;
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -71,9 +71,33 @@ select{appearance:none;-webkit-appearance:none;width:100%;height:44px;border-rad
 .notice .act{margin-top:10px;display:inline-block;height:36px;padding:0 14px;border-radius:10px;border:0;background:var(--accent);color:#111;font-weight:650}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:18px 12px}
 @media (min-width:720px){.grid{grid-template-columns:repeat(auto-fill,minmax(172px,1fr));gap:24px 16px}}
-.card{all:unset;cursor:pointer;display:flex;flex-direction:column;min-width:0;-webkit-tap-highlight-color:transparent}
-.card:focus-visible .poster{outline:2px solid var(--accent);outline-offset:3px}
-.card:active .poster{transform:scale(.98)}
+.card{display:flex;flex-direction:column;min-width:0;transition:opacity .22s ease,transform .22s ease}
+.card.gone{opacity:0;transform:scale(.94)}
+.open{all:unset;cursor:pointer;display:flex;flex-direction:column;min-width:0;-webkit-tap-highlight-color:transparent}
+.open:focus-visible .poster{outline:2px solid var(--accent);outline-offset:3px}
+.open:active .poster{transform:scale(.98)}
+.card.is-seen .poster img{filter:brightness(.42) saturate(.5)}
+.card.is-seen .ph{color:var(--faint)}
+.seenmark{position:absolute;top:7px;right:7px;display:flex;align-items:center;gap:4px;font-size:11px;font-weight:800;padding:3px 7px 3px 6px;border-radius:7px;background:var(--ok);color:#06210f}
+.card:not(.is-seen) .seenmark{display:none}
+.seen{position:relative;display:inline-flex;align-items:center;gap:8px;align-self:flex-start;margin-top:6px;padding:6px 8px 6px 2px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+.seen input{position:absolute;opacity:0;width:1px;height:1px;margin:0}
+.seen .box{width:21px;height:21px;border-radius:6px;border:1.7px solid #4d5361;display:grid;place-items:center;transition:background .15s,border-color .15s;flex:none}
+.seen .box svg{opacity:0;transition:opacity .15s}
+.seen input:checked + .box{background:var(--ok);border-color:var(--ok)}
+.seen input:checked + .box svg{opacity:1}
+.seen input:checked ~ .lbl{color:var(--text)}
+.seen input:focus-visible + .box{outline:2px solid var(--accent);outline-offset:2px}
+.seen.big{margin:14px 0 2px;font-size:15px}
+.seen.big .box{width:24px;height:24px;border-radius:7px}
+.seenbar{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;margin:12px 0 0;padding:10px 12px 10px 14px;border:1px solid var(--line);border-radius:13px;background:var(--panel);text-align:left;-webkit-tap-highlight-color:transparent}
+.seenbar .t{font-weight:650;font-size:14.5px}
+.seenbar .c{display:block;color:var(--faint);font-size:12.5px;font-weight:500;margin-top:1px}
+.switch{position:relative;width:51px;height:31px;border-radius:999px;background:#3a3f4b;flex:none;transition:background .2s}
+.switch i{position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.35);transition:transform .2s cubic-bezier(.3,.7,.3,1)}
+.seenbar[aria-checked="true"] .switch{background:var(--ok)}
+.seenbar[aria-checked="true"] .switch i{transform:translateX(20px)}
+.toast button{margin-left:12px;border:0;background:transparent;color:#9fd3ff;font-weight:700;padding:0}
 .poster{position:relative;aspect-ratio:2/3;border-radius:12px;overflow:hidden;background:var(--panel2);transition:transform .12s}
 .poster img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 .ph{position:absolute;inset:0;display:grid;place-items:center;padding:14px;text-align:center;font-weight:700;color:var(--muted);font-size:15px;line-height:1.25;background:linear-gradient(160deg,#252a36,#14161c)}
@@ -187,6 +211,10 @@ select{appearance:none;-webkit-appearance:none;width:100%;height:44px;border-rad
       <label>Sort by<select id="fSort" aria-label="Sort by"></select></label>
       <label>Rating<select id="fMin" aria-label="Minimum rating"></select></label>
     </div>
+    <button type="button" id="seenToggle" class="seenbar" role="switch" aria-checked="true">
+      <span><span class="t">Show titles I've seen</span><span class="c" id="seenCount"></span></span>
+      <span class="switch" aria-hidden="true"><i></i></span>
+    </button>
   </header>
   <main>
     <div class="meta"><span id="metaLeft"></span><span id="metaRight" class="right"></span></div>
@@ -226,6 +254,7 @@ select{appearance:none;-webkit-appearance:none;width:100%;height:44px;border-rad
       <div class="row" id="setTools">
         <button type="button" class="secondary" id="btnClearCache">Clear saved results</button>
         <button type="button" class="secondary" id="btnResetFilters">Reset filters</button>
+        <button type="button" class="secondary" id="btnClearSeen">Clear seen list</button>
       </div>
       <p class="stats" id="setStats"></p>
       <p class="fine">Results are saved for 12 hours and IMDb scores for 30 days, so browsing the same lists again doesn't use up your free daily requests.</p>
@@ -449,8 +478,27 @@ if (typeof module !== "undefined") module.exports = Core;
     omdb: LS.get("omdb", {}) || {},
     omdbQueue: [], omdbPending: new Set(), omdbActive: 0,
     omdbBlockedUntil: LS.get("omdbBlockedUntil", 0) || 0, omdbBadKey: false,
-    openId: null
+    openId: null,
+    seen: (() => { const s = LS.get("seen", {}); return (s && typeof s === "object" && !Array.isArray(s)) ? s : {}; })(),
+    showSeen: LS.get("showSeen", true) !== false,
+    autoFills: 0
   };
+
+  /* ---- seen list (per device) ---- */
+  const isSeen = id => Object.prototype.hasOwnProperty.call(state.seen, id);
+  function setSeen(id, on) {
+    if (on) state.seen[id] = Date.now(); else delete state.seen[id];
+    LS.set("seen", state.seen);
+    renderSeenBar();
+  }
+  function seenCount() { return Object.keys(state.seen).length; }
+  function renderSeenBar() {
+    const b = $("seenToggle");
+    b.setAttribute("aria-checked", String(state.showSeen));
+    const n = seenCount();
+    $("seenCount").textContent = n === 0 ? "Tick “Seen” on anything you've watched"
+      : (n + " marked as seen · " + (state.showSeen ? "showing them" : "hidden"));
+  }
 
   const keySA = () => (LS.get("keySA", "") || "").trim();
   const keyOM = () => (LS.get("keyOM", "") || "").trim();
@@ -542,8 +590,9 @@ if (typeof module !== "undefined") module.exports = Core;
   }
 
   /* ---- loading ---- */
-  async function load(reset) {
+  async function load(reset, auto) {
     const f = state.filters;
+    if (reset || !auto) state.autoFills = 0;
     if (!keySA()) { openSettings(true); return; }
     if (!f.services.length) {
       state.token++; state.items = []; state.hasMore = false; state.cursor = null;
@@ -578,8 +627,19 @@ if (typeof module !== "undefined") module.exports = Core;
       state.lastError = err;
       handleError(err, reset);
     } finally {
-      if (token === state.token) { state.loading = false; updateMore(); renderMeta(); }
+      if (token === state.token) {
+        state.loading = false; updateMore(); renderMeta();
+        if (!state.lastError) maybeAutoFill();
+      }
     }
+  }
+
+  /* When seen titles are hidden and few are left on screen, fetch up to 2 more pages automatically. */
+  function maybeAutoFill() {
+    if (state.showSeen || state.loading || !state.hasMore || state.autoFills >= 2) return;
+    if (displayItems().length >= 10) return;
+    state.autoFills++;
+    load(false, true);
   }
 
   function handleError(err, reset) {
@@ -603,7 +663,12 @@ if (typeof module !== "undefined") module.exports = Core;
   /* ---- rendering ---- */
   function ratingOf(t) { const e = t.imdbId && state.omdb[t.imdbId]; return e && e.imdb != null ? e.imdb : null; }
   function displayItems() {
-    return Core.sortOf(state.filters.sort).clientImdb ? Core.sortByImdb(state.items, ratingOf) : state.items;
+    const list = state.showSeen ? state.items : state.items.filter(t => !isSeen(t.id));
+    return Core.sortOf(state.filters.sort).clientImdb ? Core.sortByImdb(list, ratingOf) : list;
+  }
+  const CHECK_SVG = `<svg width="13" height="13" viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 7.4l3 3 6-6.6" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  function seenBoxHTML(t, big) {
+    return `<label class="seen${big ? " big" : ""}"><input type="checkbox" data-seen="${esc(t.id)}"${isSeen(t.id) ? " checked" : ""} aria-label="Seen: ${esc(t.title)}"><span class="box">${CHECK_SVG}</span><span class="lbl">${big ? "I've seen this" : "Seen"}</span></label>`;
   }
   function scoreHTML(t) {
     const r = ratingOf(t);
@@ -616,30 +681,61 @@ if (typeof module !== "undefined") module.exports = Core;
     const leaving = opts.some(o => o.expiresSoon);
     const sc = scoreHTML(t);
     const sub = [Core.yearLabel(t), t.showType === "series" ? "TV show" : "Movie"].filter(Boolean).join(" · ");
-    return `<button type="button" class="card" data-id="${esc(t.id)}">
-      <div class="poster">
-        <div class="ph">${esc(t.title)}</div>
-        ${t.poster ? `<img src="${esc(t.poster)}" alt="" loading="lazy" decoding="async">` : ""}
-        ${leaving ? `<span class="leaving">Leaving soon</span>` : ""}
-        <span class="${sc.cls}" data-score="${esc(t.id)}">${esc(sc.txt)}</span>
-      </div>
-      <div class="info">
-        <div class="title">${esc(t.title)}</div>
-        <div class="sub">${esc(sub)}</div>
-        <div class="svcs">${opts.map(o => `<span class="pill" style="--c:${o.meta.color};--fg:${o.meta.fg}">${esc(o.meta.short)}</span>`).join("")}</div>
-      </div>
-    </button>`;
+    return `<div class="card${isSeen(t.id) ? " is-seen" : ""}" data-id="${esc(t.id)}">
+      <button type="button" class="open" aria-label="${esc(t.title)}">
+        <div class="poster">
+          <div class="ph">${esc(t.title)}</div>
+          ${t.poster ? `<img src="${esc(t.poster)}" alt="" loading="lazy" decoding="async">` : ""}
+          ${leaving ? `<span class="leaving">Leaving soon</span>` : ""}
+          <span class="seenmark">${CHECK_SVG}Seen</span>
+          <span class="${sc.cls}" data-score="${esc(t.id)}">${esc(sc.txt)}</span>
+        </div>
+        <div class="info">
+          <div class="title">${esc(t.title)}</div>
+          <div class="sub">${esc(sub)}</div>
+          <div class="svcs">${opts.map(o => `<span class="pill" style="--c:${o.meta.color};--fg:${o.meta.fg}">${esc(o.meta.short)}</span>`).join("")}</div>
+        </div>
+      </button>
+      ${seenBoxHTML(t, false)}
+    </div>`;
   }
   function renderGrid() {
     const list = displayItems();
     const g = $("grid");
     if (!list.length) {
-      g.innerHTML = state.lastError || !state.filters.services.length ? "" :
-        `<div class="empty" style="grid-column:1/-1">Nothing found. Try another genre, a lower rating, or more services.</div>`;
+      let msg = "";
+      if (!state.lastError && state.filters.services.length) {
+        if (state.items.length && !state.showSeen) {
+          msg = state.hasMore
+            ? "You've seen everything loaded so far. Tap “Load more” for more, or switch on “Show titles I've seen”."
+            : "You've seen everything that matches these filters.";
+        } else {
+          msg = "Nothing found. Try another genre, a lower rating, or more services.";
+        }
+      }
+      g.innerHTML = msg ? `<div class="empty" style="grid-column:1/-1">${esc(msg)}</div>` : "";
     } else {
       g.innerHTML = list.map(cardHTML).join("");
     }
     renderMeta();
+  }
+  /* Tick or untick from a card or the detail sheet. */
+  function onSeenChange(id, on) {
+    setSeen(id, on);
+    document.querySelectorAll(`input[data-seen="${CSS.escape(id)}"]`).forEach(i => { i.checked = on; });
+    const card = $("grid").querySelector(`.card[data-id="${CSS.escape(id)}"]`);
+    if (card) card.classList.toggle("is-seen", on);
+    if (on && !state.showSeen) {
+      if (card) card.classList.add("gone");
+      setTimeout(() => { renderGrid(); maybeAutoFill(); }, 230);
+      const t = state.items.find(x => x.id === id);
+      toast("Marked “" + (t ? t.title : "title") + "” as seen", "Undo", () => {
+        onSeenChange(id, false);
+        renderGrid();
+      });
+    } else {
+      renderMeta();
+    }
   }
   function renderSkeleton() {
     $("grid").innerHTML = Array.from({ length: 8 }, () =>
@@ -650,7 +746,10 @@ if (typeof module !== "undefined") module.exports = Core;
     if (!state.loading || state.items.length) {
       const n = state.items.length;
       const sort = Core.sortOf(state.filters.sort);
-      let left = n ? (n + (state.hasMore ? "+" : "") + " titles") : "";
+      const hidden = state.showSeen ? 0 : state.items.filter(t => isSeen(t.id)).length;
+      const shown = n - hidden;
+      let left = n ? (shown + (state.hasMore ? "+" : "") + " titles") : "";
+      if (hidden) left += " · " + hidden + " seen hidden";
       if (n && sort.clientImdb && keyOM()) left += " · IMDb order for loaded titles";
       $("metaLeft").textContent = left;
     }
@@ -671,10 +770,13 @@ if (typeof module !== "undefined") module.exports = Core;
   }
   function clearNotice() { $("notice").innerHTML = ""; noticeAction = null; }
 
-  let toastTimer = 0;
-  function toast(msg) {
-    const t = $("toast"); t.textContent = msg; t.hidden = false;
-    clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 4200);
+  let toastTimer = 0, toastAction = null;
+  function toast(msg, actLabel, act) {
+    const t = $("toast");
+    toastAction = act || null;
+    t.innerHTML = esc(msg) + (actLabel ? `<button type="button" id="toastAct">${esc(actLabel)}</button>` : "");
+    t.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; toastAction = null; }, actLabel ? 6000 : 4200);
   }
 
   /* ---- OMDb ratings ---- */
@@ -797,6 +899,7 @@ if (typeof module !== "undefined") module.exports = Core;
         </div>
         <div class="ratings" id="dRatings">${ratingsHTML(t)}</div>
         <div class="play">${play || `<p class="warn">No link found for your services.</p>`}</div>
+        ${seenBoxHTML(t, true)}
         ${t.overview ? `<p class="overview">${esc(t.overview)}</p>` : ""}
         ${people}
         ${t.imdbId ? `<div class="links"><a href="https://www.imdb.com/title/${esc(t.imdbId)}/" target="_blank" rel="noopener">Open on IMDb</a></div>` : ""}
@@ -820,7 +923,7 @@ if (typeof module !== "undefined") module.exports = Core;
     $("setClose").hidden = first;
     $("setTools").hidden = first;
     const omCount = Object.keys(state.omdb).length;
-    $("setStats").textContent = first ? "" : `${countToday()} streaming requests today · ${LS.keys("q:").length} saved result pages · ${omCount} saved IMDb scores`;
+    $("setStats").textContent = first ? "" : `${countToday()} streaming requests today · ${LS.keys("q:").length} saved result pages · ${omCount} saved IMDb scores · ${seenCount()} marked as seen`;
     openSheet($("settings"));
   }
 
@@ -846,7 +949,37 @@ if (typeof module !== "undefined") module.exports = Core;
       if (!e.target.value && state.filters.keyword) setFilter({ keyword: "" });
     });
     $("grid").addEventListener("click", e => {
-      const c = e.target.closest(".card[data-id]"); if (c) openDetail(c.dataset.id);
+      if (e.target.closest(".seen")) return;
+      const o = e.target.closest(".open"); if (!o) return;
+      const c = o.closest(".card[data-id]"); if (c) openDetail(c.dataset.id);
+    });
+    const seenHandler = e => {
+      const i = e.target.closest("input[data-seen]"); if (!i) return;
+      onSeenChange(i.dataset.seen, i.checked);
+    };
+    $("grid").addEventListener("change", seenHandler);
+    $("detailPanel").addEventListener("change", seenHandler);
+    $("seenToggle").addEventListener("click", () => {
+      state.showSeen = !state.showSeen;
+      LS.set("showSeen", state.showSeen);
+      renderSeenBar();
+      renderGrid();
+      state.autoFills = 0;
+      maybeAutoFill();
+    });
+    $("toast").addEventListener("click", e => {
+      if (e.target.id !== "toastAct" || !toastAction) return;
+      const a = toastAction; toastAction = null; $("toast").hidden = true; a();
+    });
+    $("btnClearSeen").addEventListener("click", () => {
+      const n = seenCount();
+      if (!n) { toast("Your seen list is already empty"); return; }
+      let ok = true;
+      try { ok = window.confirm("Untick all " + n + " titles marked as seen?"); } catch (e) {}
+      if (!ok) return;
+      state.seen = {}; LS.set("seen", state.seen);
+      renderSeenBar(); renderGrid(); openSettings(false);
+      toast("Seen list cleared");
     });
     $("grid").addEventListener("error", e => {
       if (e.target.tagName === "IMG") e.target.remove();
@@ -890,6 +1023,7 @@ if (typeof module !== "undefined") module.exports = Core;
   }
 
   buildControls();
+  renderSeenBar();
   bind();
   renderMeta();
   if (!keySA()) openSettings(true); else load(true);
